@@ -6,166 +6,157 @@
 
 package fr.nc0.cda.nim.vue;
 
+import fr.nc0.cda.nim.modele.Joueur;
 import java.util.List;
 import java.util.Scanner;
 
 /** Interface de relation entre l'utilisateur et le système. */
 public class Ihm {
-  // !!!!! accepte les int suivant (input : 5  56 9 7) mais ne les traites pas
-  // Pour tout les scanner voir delimiter pattern
-
-  public int selectNbrTas() {
-    boolean tasNotDone = true;
-    int nbrTas = 0;
-
+  /**
+   * Demande le nombre de tas pour la partie
+   *
+   * @return le nombre de tas
+   */
+  public int demanderNombreTas() {
     Scanner scanner = new Scanner(System.in);
+    afficherDemande("Veuillez saisir le nombre de tas (entier >= 1)  pour la partie : ");
 
-    while (tasNotDone) {
-      System.out.print("Veuillez saisir le nombre de tas (entier >= 1)  pour la partie : ");
-      if (scanner.hasNextInt()) {
-        nbrTas = scanner.nextInt();
-        tasNotDone = false;
-      } else {
-        scanner.nextLine();
-        System.out.println("La saisie doit être un chiffre entier >= 1");
+    while (true) {
+      try {
+        return scanner.nextInt();
+      } catch (Exception e) {
+        afficherErreur(new Exception("La saisie doit être un chiffre entier >= 1"));
       }
     }
-    return nbrTas;
   }
 
   /**
    * Demande le nom du joueur
    *
-   * @param numeroJoueur numéro du joueur
+   * @param numero numéro du joueur
    * @return le nom du joueur
    */
-  public String selectNomJoueur(int numeroJoueur) {
+  public String selectNomJoueur(int numero) {
     Scanner scanner = new Scanner(System.in);
-    System.out.print("Veuillez saisir le nom du joueur " + numeroJoueur + " : ");
+    afficherDemande("Veuillez saisir le nom du joueur numéro " + numero + " : ");
     return scanner.next();
   }
 
   /**
-   * Affiche l'état de la partie
+   * Affiche les tas de la partie
    *
    * @param tas liste des tas
    */
-  public void afficherEtatPartie(List<Integer> tas) {
-    String affichage = "";
-    for (int i = 0; i < tas.size(); ++i) {
-      affichage = affichage + "Tas " + (i + 1) + " : ";
-      affichage = affichage + patternAffichage(" ", (tas.size() * 2 - 1) - tas.get(i));
-      affichage = affichage + patternAffichage("| ", tas.get(i)) + "\n";
-    }
-    System.out.println("Etat de la partie : \n\n" + affichage);
+  public void afficherTas(List<Integer> tas) {
+    String affichage = "Tas\t\tAllumettes\n\n";
+    for (int i = 0; i < tas.size(); ++i) affichage += (i + 1) + "\t\t" + tas.get(i) + "\n";
+    afficherMessage(affichage);
   }
 
   /**
-   * Affiche un pattern
+   * Demande au joueur de choisir un tas et un nombre d'allumettes
    *
-   * @param pattern le pattern
-   * @param nbr le nombre de fois que le pattern doit être affiché
-   * @return le pattern affiché
+   * @param nom nom du joueur
+   * @return un tableau contenant le tas et le nombre d'allumettes, sous la forme {tas, allumettes}.
    */
-  private String patternAffichage(String pattern, int nbr) {
-    if (nbr > 0) {
-      return pattern + patternAffichage(pattern, nbr - 1);
-    } else {
-      return "";
+  public int[] demanderChoix(String nom) {
+    Scanner scanner = new Scanner(System.in);
+    while (true) {
+      afficherDemande(nom + ", à vous de jouer un coup (sous la forme 'tas allumettes') : ");
+
+      if (!scanner.hasNextInt()) {
+        afficherMessage("Merci de saisir un entier pour le tas à choisir !");
+        continue;
+      }
+
+      int tas = scanner.nextInt();
+
+      if (!scanner.hasNextInt()) {
+        afficherMessage("Merci de saisir un entier pour le nombre d'allumettes à retirer !");
+        continue;
+      }
+
+      int allumettes = scanner.nextInt();
+
+      scanner.nextLine();
+      return new int[] {tas, allumettes};
     }
   }
 
   /**
-   * Demande au joueur de choisir un tas et un nombre d'allumette
+   * Demande aux joueurs s'ils veulent rejouer
    *
-   * @param joueurNom nom du joueur
-   * @return un tableau contenant le tas et le nombre d'allumette
+   * @param gagnant le joueur gagnant
+   * @param perdant le joueur perdant
+   * @return true si les joueurs veulent rejouer, false sinon
    */
-  public int[] selectAlumette(String joueurNom) {
+  public boolean demanderRejouer(Joueur gagnant, Joueur perdant) {
+    afficherScores(gagnant, perdant);
+
+    afficherDemande("Voulez-vous rejouer une nouvelle partie ? (Oui/Non) : ");
     Scanner scanner = new Scanner(System.in);
-    boolean enCours = true;
-    int[] choix = {0, 0};
-
-    while (enCours) {
-      System.out.print(
-          joueurNom + " : à vous de jouer un coup (sous la forme 'tas allumettes') : ");
-      if (scanner.hasNextInt()) {
-        choix[0] = scanner.nextInt();
-        if (scanner.hasNextInt()) {
-          choix[1] = scanner.nextInt();
-          enCours = false;
-        } else {
-          System.out.println(
-              "Votre saisie ne comprend pas d'entier sous la forme ('tas alumette')");
-        }
-      } else {
-        System.out.println("Votre saisie ne comprend pas d'entier sous la forme ('tas alumette')");
-      }
-      scanner.nextLine();
-    }
-    choix[0] = choix[0] - 1;
-    return choix;
+    return scanner.next().equalsIgnoreCase("Oui");
   }
 
-  // Retourne true si les joueurs décide de relancer une partie, false si l'inverse
-  public boolean finPartie(
-      String nomGagnant, String nomPerdant, int nbrVictoireGagnant, int nbrVictoirePerdant) {
-    etatNbrVictoire(nomGagnant, nomPerdant, nbrVictoireGagnant, nbrVictoirePerdant);
-    System.out.println("Voulez-vous rejouer une nouvelle partie ? (Y/N) : ");
-
-    Scanner scanner = new Scanner(System.in);
-    boolean enCours = true;
-    boolean choix = false;
-
-    while (enCours) {
-      if (scanner.hasNext()) {
-        switch (scanner.next()) {
-          case "Y":
-            choix = true;
-            enCours = false;
-            break;
-          case "N":
-            enCours = false;
-            break;
-          default:
-            System.out.println("L'entrée ne correspond pas à Y ou N");
-        }
-      }
-      scanner.nextLine();
-    }
-    return choix;
-  }
-
-  public void afficheGagnant(
-      String nomGagnant,
-      String nomPerdant,
-      int nbrVictoireGagnant,
-      int nbrVictoirePerdant,
-      boolean exaequo) {
-    etatNbrVictoire(nomGagnant, nomPerdant, nbrVictoireGagnant, nbrVictoirePerdant);
-    if (exaequo) {
-      System.out.println(
-          "Ex-aequo ! " + nomGagnant + " et " + nomPerdant + " ont gagnés autant de partie !");
-    } else {
-      System.out.println(nomGagnant + " est le grand gagnant !");
-    }
-  }
-
-  private void etatNbrVictoire(
-      String nomJoueur1, String nomJoueur2, int nbrVictoireJoueur1, int nbrVictoireJoueur2) {
-    System.out.println(
-        "Etat des scores : "
-            + nomJoueur1
+  /**
+   * Affiche les scores des joueurs
+   *
+   * @param joueur1 le premier joueur
+   * @param joueur2 le second joueur
+   */
+  private void afficherScores(Joueur joueur1, Joueur joueur2) {
+    afficherMessage(
+        "Scores : "
+            + joueur1.getNom()
             + " -> "
-            + nbrVictoireJoueur1
+            + joueur1.getNbrPartieGagnee()
             + " V | "
-            + nomJoueur2
+            + joueur2.getNom()
             + " -> "
-            + nbrVictoireJoueur2
+            + joueur2.getNbrPartieGagnee()
             + " V");
   }
 
-  public void message(String msg) {
-    System.out.println(msg);
+  /**
+   * Affiche le gagnant de la partie
+   *
+   * @param gagnant le joueur gagnant
+   * @param perdant le joueur perdant
+   * @param exaequo true si les joueurs ont gagné autant de partie
+   */
+  public void afficherGagnant(Joueur gagnant, Joueur perdant, boolean exaequo) {
+    afficherScores(gagnant, perdant);
+    if (exaequo) {
+      afficherMessage("Ex-aequo !");
+      return;
+    }
+    afficherMessage(gagnant.getNom() + " est le grand gagnant !");
+  }
+
+  /**
+   * Affiche une question sans retour à la ligne, utilisé pour les saisies d'informations
+   *
+   * @param question la question
+   */
+  public void afficherDemande(String question) {
+    System.out.print(question);
+  }
+
+  /**
+   * Affiche un message
+   *
+   * @param message le message
+   */
+  public void afficherMessage(String message) {
+    System.out.println(message);
+  }
+
+  /**
+   * Affiche un message d'erreur
+   *
+   * @param exception l'exception
+   */
+  public void afficherErreur(Exception exception) {
+    System.out.println("Erreur : " + exception.getMessage());
   }
 }

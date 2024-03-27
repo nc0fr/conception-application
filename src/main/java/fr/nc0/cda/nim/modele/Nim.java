@@ -7,46 +7,84 @@
 package fr.nc0.cda.nim.modele;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 /** Représente une partie du jeu de Nim. */
 public class Nim {
-  /** Nombre de tas de la partie. */
-  private final int nbrTas;
+  /** Constante pour le joueur 1 */
+  public static final int JOUEUR_1 = 1;
+
+  /** Constante pour le joueur 2 */
+  public static final int JOUEUR_2 = 2;
 
   /**
    * Liste des tas de la partie, sous forme d'une liste. L'élément i de cette liste correspond au
    * nombre d'allumettes dans le tas i.
    */
-  private List<Integer> tas;
+  private final List<Integer> tas;
 
   /** État de la partie. */
-  private EtatPartieNim etatPartie;
+  private EtatPartieNim etat = EtatPartieNim.EN_COURS;
+
+  /** Le joueur courant. */
+  private int joueurCourant = JOUEUR_1;
 
   /**
    * Créer une partie et l'initialise avec le nombre de tas donné.
    *
-   * @param nbrTas le nombre de tas de la partie.
+   * @param nombreTas le nombre de tas de la partie.
    */
-  public Nim(int nbrTas) {
-    if (nbrTas >= 1) {
-      this.nbrTas = nbrTas;
-    } else {
-      throw new IllegalArgumentException("Nombre de Tas choisis < 1");
-    }
+  public Nim(int nombreTas) {
+    if (nombreTas < 1) throw new IllegalArgumentException("Nombre de Tas choisis < 1");
+
+    tas = new ArrayList<>(nombreTas);
+    for (int i = 1; i <= nombreTas; ++i) tas.add(2 * i - 1);
   }
 
-  /** Initialise les tas de la partie avec le nombre d'allumettes correspondant. */
-  private void setupTas() {
-    tas = new ArrayList<>(nbrTas);
-    for (int i = 1; i <= nbrTas; ++i) tas.add(2 * i - 1);
+  /** Change le joueur courant. */
+  private void changerJoueurCourant() {
+    joueurCourant = joueurCourant == JOUEUR_1 ? JOUEUR_2 : JOUEUR_1;
   }
 
-  /** Démarre la partie en initialisant les tas et en passant l'état de la partie à EnCours. */
-  public void demarrerPartie() {
-    setupTas();
-    etatPartie = EtatPartieNim.EN_COURS;
+  /**
+   * Vérifie que le tas donné existe
+   *
+   * @param tas le numéro du tas
+   * @return true si le tas n'existe pas, false sinon
+   */
+  private boolean verifierNumeroTas(int tas) {
+    return tas < 0 || tas >= this.tas.size();
+  }
+
+  /**
+   * Vérifie que le nombre d'allumettes donné est valide
+   *
+   * @param tas le tas
+   * @param nombre le nombre d'allumettes
+   * @return true si le nombre d'allumettes est invalide, false sinon
+   */
+  private boolean verifierNombre(int tas, int nombre) {
+    return nombre <= 0 || nombre > this.tas.get(tas);
+  }
+
+  /**
+   * Retire le nombre d'allumettes donné du tas donné.
+   *
+   * @param tasNumber le numéro du tas
+   * @param nombre le nombre d'allumettes à retirer
+   */
+  private void retirerAllumettes(int tasNumber, int nombre) {
+    int allumettes = tas.get(tasNumber);
+    tas.set(tasNumber, allumettes - nombre);
+  }
+
+  private void verifierEtatPartie() {
+    for (int allumettes : tas) if (allumettes > 0) return;
+
+    etat =
+        joueurCourant == JOUEUR_1
+            ? EtatPartieNim.VICTOIRE_JOUEUR_2
+            : EtatPartieNim.VICTOIRE_JOUEUR_1;
   }
 
   /**
@@ -59,59 +97,39 @@ public class Nim {
   }
 
   /**
-   * Supprime un nombre donné d'allumettes dans un tas donné.
-   *
-   * @param choix un tableau de deux entiers, le premier correspondant à l'index du tas et le second
-   *     au nombre d'allumettes à supprimer.
-   * @throws IllegalArgumentException si le choix est invalide.
-   */
-  public void supprAllumettes(int[] choix) {
-    try {
-      verifierChoix(choix);
-      tas.set(choix[0], tas.get(choix[0]) - choix[1]);
-    } catch (IllegalArgumentException e) {
-      throw e;
-    }
-  }
-
-  /**
-   * Vérifie si le choix est valide.
-   *
-   * @param choix un tableau de deux entiers, le premier correspondant à l'index du tas et le second
-   */
-  private void verifierChoix(int[] choix) {
-    if (tas.size() <= choix[0] || choix[0] < 0) {
-      throw new IllegalArgumentException("Valeur du tas incorrect");
-    } else {
-      if (choix[1] <= 0 || choix[1] > tas.get(choix[0])) {
-        throw new IllegalArgumentException("Valeur des allumettes incorrect");
-      }
-    }
-  }
-
-  /**
-   * Récupère l'état de la partie.
+   * Retourne l'état de la partie.
    *
    * @return l'état de la partie.
    */
-  public EtatPartieNim getEtatPartie() {
-    return etatPartie;
+  public EtatPartieNim getEtat() {
+    return etat;
   }
 
   /**
-   * Vérifie si la partie est finie. Si tous les tas sont vides, l'état de la partie est mis à Fini.
+   * Retourne le joueur courant.
+   *
+   * @return le joueur courant.
    */
-  public void checkEtatPartie() {
-    boolean estFini = true;
-    Iterator<Integer> it = tas.iterator();
-    while (it.hasNext()) {
-      if (it.next() > 0) {
-        estFini = false;
-      }
-    }
+  public int getJoueurCourant() {
+    return joueurCourant;
+  }
 
-    if (estFini) {
-      etatPartie = EtatPartieNim.FINI;
-    }
+  /**
+   * Joue un tour de jeu.
+   *
+   * @param tas le tas sur lequel retirer des allumettes
+   * @param nombre le nombre d'allumettes à retirer
+   * @throws IllegalArgumentException si le choix est invalide ou le tas est vide
+   * @throws IllegalStateException si la partie est terminée
+   */
+  public void jouer(int tas, int nombre) {
+    if (etat != EtatPartieNim.EN_COURS) throw new IllegalStateException("La partie est terminée");
+    if (!verifierNumeroTas(tas)) throw new IllegalArgumentException("Le tas donné est invalide");
+    if (!verifierNombre(tas, nombre))
+      throw new IllegalArgumentException("Le tas donné ne contient pas assez d'allumettes");
+
+    retirerAllumettes(tas, nombre);
+    verifierEtatPartie();
+    changerJoueurCourant();
   }
 }

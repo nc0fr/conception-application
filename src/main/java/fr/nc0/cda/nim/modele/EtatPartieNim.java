@@ -10,6 +10,8 @@ package fr.nc0.cda.nim.modele;
 public enum EtatPartieNim {
   /** La partie est en cours. */
   EN_COURS,
-  /** La partie est finie. */
-  FINI
+  /** La partie est terminée par une victoire du joueur 1. */
+  VICTOIRE_JOUEUR_1,
+  /** La partie est terminée par une victoire du joueur 2. */
+  VICTOIRE_JOUEUR_2,
 }

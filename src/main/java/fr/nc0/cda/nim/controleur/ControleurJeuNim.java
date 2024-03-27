@@ -11,6 +11,7 @@ import fr.nc0.cda.nim.modele.Joueur;
 import fr.nc0.cda.nim.modele.Nim;
 import fr.nc0.cda.nim.vue.Ihm;
 import java.util.ArrayList;
+import java.util.List;
 
 /** Contrôleur du jeu de Nim. */
 public class ControleurJeuNim {
@@ -18,10 +19,10 @@ public class ControleurJeuNim {
   private final Ihm ihm;
 
   /** Liste des joueurs de la partie. */
-  private final ArrayList<Joueur> lesJoueurs;
+  private final List<Joueur> joueurs = new ArrayList<>(2);
 
-  /** Partie en cours du jeu de Nim. */
-  private Nim nim;
+  /** Nombre de tas pour les parties. */
+  private final int nombreTas;
 
   /**
    * Créer un contrôleur de jeu de Nim.
@@ -30,84 +31,130 @@ public class ControleurJeuNim {
    */
   public ControleurJeuNim(Ihm ihm) {
     this.ihm = ihm;
+    this.nombreTas = demanderNombreTas();
 
-    while (true) {
-      try {
-        nim = new Nim(ihm.selectNbrTas());
-        break;
-      } catch (IllegalArgumentException e) {
-        ihm.message(e.getMessage());
-      }
-    }
-
-    lesJoueurs = new ArrayList<>(2);
-    lesJoueurs.add(new Joueur(ihm.selectNomJoueur(1)));
-    lesJoueurs.add(new Joueur(ihm.selectNomJoueur(2)));
+    joueurs.add(new Joueur(ihm.selectNomJoueur(1)));
+    joueurs.add(new Joueur(ihm.selectNomJoueur(2)));
   }
 
-  /** Jouer une partie du jeu de Nim. */
-  public void jouer() {
-
-    nim.demarrerPartie();
-    Joueur currentPlayer = lesJoueurs.get(0);
-
-    while (nim.getEtatPartie() == EtatPartieNim.EN_COURS) {
-      ihm.afficherEtatPartie(nim.getTas());
-      while (true) {
-        int[] choix = ihm.selectAlumette(currentPlayer.getNom());
-        try {
-          nim.supprAllumettes(choix);
-          break;
-        } catch (IllegalArgumentException e) {
-          ihm.message(e.getMessage());
-        }
+  /**
+   * Demande le nombre de tas pour le plateau de la partie.
+   *
+   * @return le nombre de tas.
+   * @throws IllegalArgumentException si le nombre de tas est inférieur à 1.
+   */
+  private int demanderNombreTas() {
+    while (true) {
+      try {
+        return ihm.demanderNombreTas();
+      } catch (IllegalArgumentException e) {
+        ihm.afficherErreur(e);
       }
-      nim.checkEtatPartie();
-      if (nim.getEtatPartie() == EtatPartieNim.EN_COURS) {
-        currentPlayer = nextPlayer(currentPlayer);
-      }
-    }
-
-    currentPlayer.ajouterPartieGagnee();
-    Joueur gagnant = currentPlayer;
-    Joueur perdant = nextPlayer(currentPlayer);
-    if (ihm.finPartie(
-        gagnant.getNom(),
-        perdant.getNom(),
-        gagnant.getNbrPartieGagnee(),
-        perdant.getNbrPartieGagnee())) {
-      jouer();
-    } else {
-      boolean exaequo = false;
-      if (lesJoueurs.get(0).getNbrPartieGagnee() > lesJoueurs.get(1).getNbrPartieGagnee()) {
-        gagnant = lesJoueurs.get(0);
-        perdant = lesJoueurs.get(1);
-      } else if (lesJoueurs.get(0).getNbrPartieGagnee() < lesJoueurs.get(1).getNbrPartieGagnee()) {
-        gagnant = lesJoueurs.get(1);
-        perdant = lesJoueurs.get(0);
-      } else {
-        exaequo = true;
-      }
-      ihm.afficheGagnant(
-          gagnant.getNom(),
-          perdant.getNom(),
-          gagnant.getNbrPartieGagnee(),
-          perdant.getNbrPartieGagnee(),
-          exaequo);
     }
   }
 
   /**
-   * Récupère le joueur suivant.
+   * Demande le nombre d'allumettes à supprimer et dans quel tas.
    *
-   * @param currentPlayer le joueur actuel.
-   * @return le joueur suivant.
+   * @param joueur le joueur qui doit jouer.
+   * @param nim le jeu de Nim.
+   * @return un tableau contenant le numéro du tas et le nombre d'allumettes à supprimer.
    */
-  private Joueur nextPlayer(Joueur currentPlayer) {
-    if (currentPlayer == lesJoueurs.get(0)) {
-      return lesJoueurs.get(1);
-    } else {
-      return lesJoueurs.get(0);
+  private int[] recupererChoix(Joueur joueur, Nim nim) {
+    while (true) {
+      try {
+        int[] choix = ihm.demanderChoix(joueur.getNom());
+        int tas = choix[0];
+        int allumettes = choix[1];
+
+        if (tas < 1 || tas > nombreTas)
+          throw new IllegalArgumentException(
+              "Le numéro du tas doit être compris entre 1 et " + nombreTas);
+
+        if (allumettes < 1 || allumettes > nim.getTas().get(tas - 1))
+          throw new IllegalArgumentException(
+              "Le nombre d'allumettes doit être compris entre 1 et " + nim.getTas().get(tas - 1));
+
+        return choix;
+      } catch (IllegalArgumentException e) {
+        ihm.afficherErreur(e);
+      }
     }
+  }
+
+  /**
+   * Détermine le joueur qui doit jouer.
+   *
+   * @param nim le jeu de Nim.
+   * @return le joueur qui doit jouer.
+   */
+  private Joueur determinerJoueur(Nim nim) {
+    return joueurs.get(nim.getJoueurCourant() - 1);
+  }
+
+  /**
+   * Retourne le joueur vainqueur de la partie donnée.
+   *
+   * @param nim le jeu de Nim.
+   * @return le joueur vainqueur.
+   */
+  private Joueur determinerVainqueur(Nim nim) {
+    if (nim.getEtat() == EtatPartieNim.VICTOIRE_JOUEUR_1) return joueurs.get(0);
+    else return joueurs.get(1);
+  }
+
+  /**
+   * Retourne le joueur perdant de la partie donnée.
+   *
+   * @param nim le jeu de Nim.
+   * @return le joueur perdant.
+   */
+  private Joueur determinerPerdant(Nim nim) {
+    if (nim.getEtat() == EtatPartieNim.VICTOIRE_JOUEUR_2) return joueurs.get(0);
+    else return joueurs.get(1);
+  }
+
+  /** Affiche le résumé des parties jouées. */
+  private void afficherResume() {
+    Joueur joueur1 = joueurs.get(0);
+    Joueur joueur2 = joueurs.get(1);
+
+    if (joueur1.getNbrPartieGagnee() > joueur2.getNbrPartieGagnee())
+      ihm.afficherGagnant(joueur1, joueur2, false);
+    else if (joueur1.getNbrPartieGagnee() < joueur2.getNbrPartieGagnee())
+      ihm.afficherGagnant(joueur2, joueur1, false);
+    else ihm.afficherGagnant(joueur1, joueur2, true);
+  }
+
+  /** Jouer une partie du jeu de Nim. */
+  public void jouer() {
+    Nim nim = new Nim(nombreTas);
+
+    // Game loop principale
+    while (nim.getEtat() == EtatPartieNim.EN_COURS) {
+      ihm.afficherTas(nim.getTas());
+      Joueur currentPlayer = determinerJoueur(nim);
+
+      int[] choix = recupererChoix(currentPlayer, nim);
+      int tas = choix[0];
+      int allumettes = choix[1];
+
+      nim.jouer(tas, allumettes);
+    }
+
+    // Fin de la partie, il faut calculer et afficher le vainqueur, mettre à jour les statistiques
+    // des joueurs, ainsi que de recommencer une nouvelle partie au besoin.
+    Joueur gagnant = determinerVainqueur(nim);
+    Joueur perdant = determinerPerdant(nim);
+
+    gagnant.ajouterPartieGagnee();
+
+    boolean rejouer = ihm.demanderRejouer(gagnant, perdant);
+    if (!rejouer) {
+      afficherResume();
+      return;
+    }
+
+    jouer();
   }
 }
